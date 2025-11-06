@@ -182,17 +182,8 @@ class CSP_QueenProblem:
             'unassigned_queens': []
         }
 
-
-
-# In[258]:
-
-
 queen_8 = CSP_BacktrackingSearchFramework(CSP_QueenProblem(8))
 queen_8.run()
-
-
-# In[259]:
-
 
 class SimulatedAnnealingFramework:
     def __init__(self, problem, reporter=None):
@@ -291,11 +282,6 @@ class SimulatedAnnealingQueenProblemGeometricCooling(SimulatedAnnealingQueenProb
         self.temperature = self.temperature * self.rate
         return self.temperature
 
-
-
-# In[260]:
-
-
 sa_queen_problem = SimulatedAnnealingQueenProblem(8, 4000)
 framework_sa_queen_problem = SimulatedAnnealingFramework(sa_queen_problem)
 state, energy = framework_sa_queen_problem.run()
@@ -307,10 +293,6 @@ sa_queen_problem_gc = SimulatedAnnealingQueenProblemGeometricCooling(8, 4000, te
 framework_sa_queen_problem_gc = SimulatedAnnealingFramework(sa_queen_problem_gc)
 state = framework_sa_queen_problem_gc.run()
 print(state, energy)
-
-
-# In[261]:
-
 
 class GeneticAlgorithmFramework:
     def __init__(self, problem, reporter=None):
