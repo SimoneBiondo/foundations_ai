@@ -5,6 +5,18 @@ import random
 import math
 import functools
 
+from concurrent.futures.thread import ThreadPoolExecutor
+
+DEFAULT_TIMEOUT = 60
+QUEEN_SIZES = [2, 4, 6, 8, 10, 12, 14, 16]
+PROBLEMS = {
+    'backtracking': None,
+    'backtracking+mrv': None,
+    'simulated_annealing': None,
+    'simulated_annealing+geometric_cooling': None,
+    'genetic_algorithm': None
+}
+
 # The positions of the queen on the chessboard.
 Pair = collections.namedtuple('Pair', ['i', 'j'])
 
