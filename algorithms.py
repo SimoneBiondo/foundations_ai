@@ -40,18 +40,6 @@ def random_int(a, b):
     random.shuffle(values)
     return values[0]
 
-# Runs a function n_runs times and logs the times to the report.
-def benchmark(report, func, n_runs=5):
-    print(f"\n=== Benchmarking {report.name} ({n_runs} runs) ===")
-
-    for i in range(1, n_runs + 1):
-        print(f"  Run {i}/{n_runs}...")
-        result = func()
-        report.set_result(f'solution_run_{i}', result)
-
-    print("Benchmark completed!\n")
-    return report
-
 
 # The general framework for CSP problems. Values are chosen for one
 # variable at a time, and the process is reversed when a variable
