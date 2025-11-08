@@ -77,7 +77,8 @@ class CSP_BacktrackingSearchFramework:
         # track of assigned and unassigned variables.
         variable = self.csp_problem.select_unassigned_variable(assignment)
 
-        # ...
+        # Count of the number of nodes visited, meaning that
+        # a different configuration is being explored.
         if self.reporter is not None:
             self.reporter.counter('nodes_expanded', 1)
     
@@ -94,7 +95,7 @@ class CSP_BacktrackingSearchFramework:
                     if result != self.csp_problem.failure():
                         return result
 
-                # ...
+                # This is the number of wrong choices with inconsistent solutions.
                 if self.reporter is not None:
                     self.reporter.counter('removes', 1)
 
@@ -148,7 +149,10 @@ class CSP_QueenProblem:
         q1 = value
 
         for q2 in assignment['assigned_queens']:
-            # ...
+            # Count how many comparisons the CSP algorithm is performing.
+            # This is an approximation: attacking_each_other is constant,
+            # so instead of counting all three different logical operations,
+            # the function call is considered
             if self.reporter is not None:
                 self.reporter.counter('comparisons', 1)
             
@@ -191,9 +195,6 @@ class CSP_QueenProblem:
             'unassigned_queens': []
         }
 
-queen_8 = CSP_BacktrackingSearchFramework(CSP_QueenProblem(8))
-queen_8.run()
-
 class SimulatedAnnealingFramework:
     def __init__(self, problem, reporter=None):
         self.problem = problem
@@ -209,7 +210,6 @@ class SimulatedAnnealingFramework:
             t = self.problem.schedule(iteration)
 
             if t == 0 or self.problem.is_enough(current_state):
-                # ...
                 if self.reporter is not None:
                     self.reporter.counter('iterations', iteration)
 
@@ -220,7 +220,7 @@ class SimulatedAnnealingFramework:
             # have an associated value.
             successors = self.problem.successors(current_state)
 
-            # ...
+            # The number of successors generated for each node.
             if self.reporter is not None:
                 self.reporter.counter('successors', len(successors))
                 
@@ -350,7 +350,6 @@ class GeneticAlgorithmFramework:
 
                 # The mutation is applied based on a specific probability distribution (e.g. Poisson).
                 if self.problem.should_mutate(child, siblings=siblings):
-                    # ...
                     if self.reporter is not None:
                         self.reporter.counter('mutations', 1)
                         
@@ -365,7 +364,6 @@ class GeneticAlgorithmFramework:
             if self.problem.is_enough(population, iteration):
                 best = self.problem.best_of(population)
 
-                # ...
                 if self.reporter is not None:
                     reporter = self.reporter
                     reporter.counter('iterations', iteration)
@@ -398,19 +396,21 @@ class GeneticAlgorithmQueenProblem:
         self.reporter = reporter
 
     def initial_population(self):
-        # A random string is generated....
+        # The genetic algorithm works with strings.
+        # A set of chessboards with assigned queens is randomly generated.
         states = [0 for _ in range(0, self.k)]
         states = list(map(lambda _: [str(random_int(0, self.n - 1)) for i in range(0, self.n)], states))
         states = list(map(lambda l: '_'.join(l), states))
 
-        # ...
+        # This is an array of strings, which is a string
+        # representation of the chessboard with assigned queens.
         return states
 
     def pop_by_fit(self, population):
-        # ...
         with_fitness = self.__queens_with_fitness(population)
 
-        # ...
+        # Calculating the probability of being chosen for
+        # the reproductive process.
         fitsum = functools.reduce(lambda x, y: x + y.j, with_fitness, 0)
         with_fitness = list(map(lambda p: Pair(p.i, p.j / fitsum), with_fitness))
 
@@ -419,7 +419,9 @@ class GeneticAlgorithmQueenProblem:
         choices = list(map(lambda p: p.i, with_fitness))
         probabilities = list(map(lambda p: p.j, with_fitness))
 
-        # ...
+        # The most valuable state is selected based on the
+        # probabilities involved. The string representation
+        # is then returned.
         bet = random.choices(choices, weights=probabilities, k=1)[0]
         return '_'.join(map(lambda p: str(p.j), bet))
 
@@ -433,22 +435,25 @@ class GeneticAlgorithmQueenProblem:
     # The state is changed by changing the position
     # of a queen with respect to the available columns.
     def apply_mutation(self, child, siblings):
-        # ...
+        # A random position is chosen.
         position = random_int(0, self.n - 1)
 
-        # ...
+        # The string representation is mapped to the chess board
+        # representation.
         queen_state = self.__str_to_queen_state(child)
 
-        # ...
+        # Selection of the queen which will change its position
+        # in the column.
         queen_to_change = queen_state[position]
         old_column = queen_to_change.j
 
-        # ...
+        # Randomly choose a new value for the column.
         values = list(filter(lambda x: x != old_column, [i for i in range(self.n)]))
         random.shuffle(values)
         value = values[0]
 
-        # ...
+        # Modify the queen accordingly and return the
+        # new string representation.
         new_queen = Pair(position, value)
         queen_state[position] = new_queen
 
@@ -476,19 +481,14 @@ class GeneticAlgorithmQueenProblem:
         return len(list(filter(lambda x: x.j >= max_fit, with_fitness))) != 0
 
     def best_of(self, population):
-        # ...
         with_fitness = self.__queens_with_fitness(population)
-
-        # ...
         pair = max(with_fitness, key=lambda x: x.j)
         return [self.__queen_state_to_str(pair.i), pair.j]
 
     def cross(self, first, second, point):
-        # ...
         first_queen_board = self.__str_to_queen_state(first)
         second_queen_board = self.__str_to_queen_state(second)
 
-        # ...
         new_board = []
         for index in range(self.n):
             if index < point:
@@ -500,21 +500,21 @@ class GeneticAlgorithmQueenProblem:
             
 
 
-    # ...
+    # Mapping from chessboard representation to string representation.
     def __queen_state_to_str(self, queen_state):
-        # ...
         return '_'.join(map(lambda pair: str(pair.j), queen_state))
 
-    # ...
+    # From the population (array of strings),
+    # to an array of tables with queens represented as pairs.
+    # Each entry also has its own fitness value.
     def __queens_with_fitness(self, population):
-        # ...
         def population_to_queens():
             queens = list(map(lambda s: s.split('_'), population))
             queens = list(map(lambda l: list(map(lambda x: Pair(x[0], int(x[1])), enumerate(l))), queens))
     
             return queens
 
-        # ...
+        # The fitness function is the number of non-attacking queens.
         def fitness(state):
             non_attacking_positions = set()
     
@@ -527,7 +527,6 @@ class GeneticAlgorithmQueenProblem:
     
             return len(non_attacking_positions)
 
-        # ...
         with_fitness = []
         queens = population_to_queens()
 
@@ -536,9 +535,8 @@ class GeneticAlgorithmQueenProblem:
 
         return with_fitness
 
-    # ...
+    # Mapping from string representation to chessboard representation.
     def __str_to_queen_state(self, string):
-        # ...
         columns = string.split('_')
         queen_state = list(map(lambda x: Pair(x[0], int(x[1])), enumerate(columns)))
 
@@ -603,8 +601,6 @@ class Report:
 
         print("="*50)
 
-
-
 # Initialize the report to be used to analyze different metrics.
 report_csp = Report("CSP_Backtracking", problem_size=8, params={'method':'backtracking'})
 report_sa = Report("SimulatedAnnealing", problem_size=8, params={'method':'SA', 'iterations':200})
@@ -616,7 +612,7 @@ csp_search = CSP_BacktrackingSearchFramework(csp_problem, reporter=report_csp)
 sa_problem = SimulatedAnnealingQueenProblem(8, iterations=200, reporter=report_sa)
 sa_search = SimulatedAnnealingFramework(sa_problem, reporter=report_sa)
 
-ga_problem = GeneticAlgorithmQueenProblem(8, 14, iterations=1024, mutation_rate=0.003, reporter=report_ga)
+ga_problem = GeneticAlgorithmQueenProblem(8, 14, iterations=32, mutation_rate=0.003, reporter=report_ga)
 ga_search = GeneticAlgorithmFramework(ga_problem, reporter=report_ga)
 
 # The run function is the function for which the report is to be written.
