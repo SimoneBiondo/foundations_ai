@@ -661,41 +661,23 @@ class Report:
 
         print("="*50)
 
-# Initialize the report to be used to analyze different metrics.
-report_csp = Report("CSP_Backtracking", problem_size=8, params={'method':'backtracking'})
-report_csp_mrv = Report("CSP_BacktrackingMRV", problem_size=8, params={'method':'backtracking'})
-report_sa = Report("SimulatedAnnealing", problem_size=8, params={'method':'SA', 'iterations':200})
-report_ga = Report("GeneticAlgorithm", problem_size=8, params={'method':'GA'})
+def benchmark():
+    # ...
+    for size in QUEEN_SIZES:
+        for problem in PROBLEMS:
+            if problem == 'backtracking':
+                # ...
+                reporter = Report(problem, problem_size=size)
+                problem =  CSP_QueenProblem(n_queens=size, reporter=reporter)
+                framework = CSP_BacktrackingSearchFramework(problem, reporter=reporter)
+                result = exec(reporter.measure('run')(framework.run), timeout=DEFAULT_TIMEOUT)
 
-csp_problem = CSP_QueenProblem(18, reporter=report_csp)
-csp_search = CSP_BacktrackingSearchFramework(csp_problem, reporter=report_csp)
+                # ...
+                if result is None:
+                    reporter.set_result('solution', 'Timeout occurred: > ' + str(DEFAULT_TIMEOUT) + 's')
+                else:
+                    reporter.set_result('solution', result)
 
-csp_mrv_problem = CSP_QueenProblemMRV(18, reporter=report_csp_mrv)
-csp_mrv_search = CSP_BacktrackingSearchFramework(csp_mrv_problem, reporter=report_csp_mrv)
+                reporter.pretty_print()
 
-sa_problem = SimulatedAnnealingQueenProblem(8, iterations=200, reporter=report_sa)
-sa_search = SimulatedAnnealingFramework(sa_problem, reporter=report_sa)
-
-ga_problem = GeneticAlgorithmQueenProblem(8, 14, iterations=32, mutation_rate=0.003, reporter=report_ga)
-ga_search = GeneticAlgorithmFramework(ga_problem, reporter=report_ga)
-
-# The run function is the function for which the report is to be written.
-csp_run_timed = report_csp.measure('csp_run')(csp_search.run)
-csp_mrv_run_timed = report_csp_mrv.measure('csp_mrv_run')(csp_mrv_search.run)
-sa_run_timed = report_sa.measure('sa_run')(sa_search.run)
-ga_run_timed = report_ga.measure('ga_run')(ga_search.run)
-
-csp_solution = csp_run_timed()
-csp_mrv_solution = csp_mrv_run_timed()
-sa_solution = sa_run_timed()
-ga_solution = ga_run_timed()
-
-report_csp.set_result('csp_solution', csp_solution)
-report_csp_mrv.set_result('csp_mrv_solution', csp_mrv_solution)
-report_sa.set_result('sa_solution', sa_solution)
-report_ga.set_result('ga_solution', ga_solution)
-
-report_csp.pretty_print()
-report_csp_mrv.pretty_print()
-report_sa.pretty_print()
-report_ga.pretty_print()
+benchmark()
