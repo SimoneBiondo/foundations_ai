@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 import collections
 import itertools
 import time
@@ -80,6 +77,10 @@ class CSP_BacktrackingSearchFramework:
         # track of assigned and unassigned variables.
         variable = self.csp_problem.select_unassigned_variable(assignment)
 
+        # ...
+        if self.reporter is not None:
+            self.reporter.counter('nodes_expanded', 1)
+    
         # A value is chosen from the domain of the selected variable.
         for value in self.csp_problem.order_domain_values(variable, assignment):
             if self.csp_problem.is_consistent(variable, value, assignment):
@@ -92,6 +93,10 @@ class CSP_BacktrackingSearchFramework:
 
                     if result != self.csp_problem.failure():
                         return result
+
+                # ...
+                if self.reporter is not None:
+                    self.reporter.counter('removes', 1)
 
                 # When the backtracking algorithm returns an incomplete result,
                 # the chosen path cannot lead to a valid solution.
@@ -143,6 +148,10 @@ class CSP_QueenProblem:
         q1 = value
 
         for q2 in assignment['assigned_queens']:
+            # ...
+            if self.reporter is not None:
+                self.reporter.counter('comparisons', 1)
+            
             # The cost of the check is constant.
             if attacking_each_other(q1, q2):
                 return False
@@ -200,12 +209,21 @@ class SimulatedAnnealingFramework:
             t = self.problem.schedule(iteration)
 
             if t == 0 or self.problem.is_enough(current_state):
+                # ...
+                if self.reporter is not None:
+                    self.reporter.counter('iterations', iteration)
+
                 return [current_state, self.problem.energy(current_state)]
 
             # For simulated annealing, successors must be complete,
             # meaning all variables involved in the problem must
             # have an associated value.
             successors = self.problem.successors(current_state)
+
+            # ...
+            if self.reporter is not None:
+                self.reporter.counter('successors', len(successors))
+                
             random.shuffle(successors)
             next_state = successors[0]
 
@@ -282,18 +300,6 @@ class SimulatedAnnealingQueenProblemGeometricCooling(SimulatedAnnealingQueenProb
         self.temperature = self.temperature * self.rate
         return self.temperature
 
-sa_queen_problem = SimulatedAnnealingQueenProblem(8, 4000)
-framework_sa_queen_problem = SimulatedAnnealingFramework(sa_queen_problem)
-state, energy = framework_sa_queen_problem.run()
-
-print(state)
-print(energy)
-
-sa_queen_problem_gc = SimulatedAnnealingQueenProblemGeometricCooling(8, 4000, temperature=1.0, rate=0.995)
-framework_sa_queen_problem_gc = SimulatedAnnealingFramework(sa_queen_problem_gc)
-state = framework_sa_queen_problem_gc.run()
-print(state, energy)
-
 class GeneticAlgorithmFramework:
     def __init__(self, problem, reporter=None):
         self.problem = problem
@@ -344,6 +350,10 @@ class GeneticAlgorithmFramework:
 
                 # The mutation is applied based on a specific probability distribution (e.g. Poisson).
                 if self.problem.should_mutate(child, siblings=siblings):
+                    # ...
+                    if self.reporter is not None:
+                        self.reporter.counter('mutations', 1)
+                        
                     child = self.problem.apply_mutation(child, siblings=siblings)
 
                 new_population.append(child)
@@ -353,7 +363,16 @@ class GeneticAlgorithmFramework:
             # The algorithm will stop as soon as the solution
             # is sufficient or too much time has passed.
             if self.problem.is_enough(population, iteration):
-                return self.problem.best_of(population)
+                best = self.problem.best_of(population)
+
+                # ...
+                if self.reporter is not None:
+                    reporter = self.reporter
+                    reporter.counter('iterations', iteration)
+                    reporter.set_result('best_solution', best[0])
+                    reporter.set_result('best_fitness', best[1])
+
+                return best
 
 
     def __reproduce(self, first, second, individuals=[]):
@@ -366,11 +385,9 @@ class GeneticAlgorithmFramework:
 
         # If all possible crossover points have been generated, a random point is chosen.
         point = random_int(1, n - 1) if len(crossover_points) == 0 else crossover_points[0]
-
-        first_sub = first[:point]
-        second_sub = second[point:]
-
-        return [first_sub + second_sub, point]
+        child = self.problem.cross(first, second, point)
+        
+        return [child, point]
 
 class GeneticAlgorithmQueenProblem:
     def __init__(self, n, k, iterations, mutation_rate, reporter=None):
@@ -381,15 +398,19 @@ class GeneticAlgorithmQueenProblem:
         self.reporter = reporter
 
     def initial_population(self):
-        # A random string is generated.
+        # A random string is generated....
         states = [0 for _ in range(0, self.k)]
         states = list(map(lambda _: [str(random_int(0, self.n - 1)) for i in range(0, self.n)], states))
-        states = list(map(lambda l: ''.join(l), states))
+        states = list(map(lambda l: '_'.join(l), states))
 
+        # ...
         return states
 
     def pop_by_fit(self, population):
-        with_fitness = self.__population_with_fitness(population)
+        # ...
+        with_fitness = self.__queens_with_fitness(population)
+
+        # ...
         fitsum = functools.reduce(lambda x, y: x + y.j, with_fitness, 0)
         with_fitness = list(map(lambda p: Pair(p.i, p.j / fitsum), with_fitness))
 
@@ -398,7 +419,9 @@ class GeneticAlgorithmQueenProblem:
         choices = list(map(lambda p: p.i, with_fitness))
         probabilities = list(map(lambda p: p.j, with_fitness))
 
-        return random.choices(choices, weights=probabilities, k=1)[0]
+        # ...
+        bet = random.choices(choices, weights=probabilities, k=1)[0]
+        return '_'.join(map(lambda p: str(p.j), bet))
 
     def should_mutate(self, child, siblings):
         def poisson(l, n):
@@ -407,21 +430,29 @@ class GeneticAlgorithmQueenProblem:
         mutation_rate = self.mutation_rate * (len(siblings) + 1) * (siblings.count(child) + 1)
         return random.random() < poisson(l=mutation_rate, n=1)
 
+    # The state is changed by changing the position
+    # of a queen with respect to the available columns.
     def apply_mutation(self, child, siblings):
-        # The state is changed by changing the position
-        # of a queen with respect to the available columns.
-        positions = [i for i in range(self.n)]
-        random.shuffle(positions)
-        position = positions[0]
-        old_value = child[position]
-        new_values = list(filter(lambda x: x != old_value, child))
-        random.shuffle(new_values)
-        new_value = new_values[0]
+        # ...
+        position = random_int(0, self.n - 1)
 
-        lchild = list(child)
-        lchild[position] = new_value
+        # ...
+        queen_state = self.__str_to_queen_state(child)
 
-        return ''.join(lchild)
+        # ...
+        queen_to_change = queen_state[position]
+        old_column = queen_to_change.j
+
+        # ...
+        values = list(filter(lambda x: x != old_column, [i for i in range(self.n)]))
+        random.shuffle(values)
+        value = values[0]
+
+        # ...
+        new_queen = Pair(position, value)
+        queen_state[position] = new_queen
+
+        return self.__queen_state_to_str(queen_state)
 
     def is_enough(self, population, iteration):
         def arithmetic_series(start,  step,  end):
@@ -441,42 +472,77 @@ class GeneticAlgorithmQueenProblem:
         # Whenever there is at least one state with maximum
         # fit, the algorithm should stop.
         max_fit = round(arithmetic_series(1, 1, self.n - 1))
-        return len(list(filter(lambda x: x.j >= max_fit, self.__population_with_fitness(population)))) != 0
+        with_fitness = self.__queens_with_fitness(population)
+        return len(list(filter(lambda x: x.j >= max_fit, with_fitness))) != 0
 
     def best_of(self, population):
-        pair = max(self.__population_with_fitness(population), key=lambda x: x.j)
-        return [pair.i, pair.j]
+        # ...
+        with_fitness = self.__queens_with_fitness(population)
+
+        # ...
+        pair = max(with_fitness, key=lambda x: x.j)
+        return [self.__queen_state_to_str(pair.i), pair.j]
+
+    def cross(self, first, second, point):
+        # ...
+        first_queen_board = self.__str_to_queen_state(first)
+        second_queen_board = self.__str_to_queen_state(second)
+
+        # ...
+        new_board = []
+        for index in range(self.n):
+            if index < point:
+                new_board.append(first_queen_board[index])
+            else:
+                new_board.append(second_queen_board[index])
+
+        return self.__queen_state_to_str(new_board)
+            
 
 
-    def __fitness(self, state):
-        non_attacking_positions = set()
+    # ...
+    def __queen_state_to_str(self, queen_state):
+        # ...
+        return '_'.join(map(lambda pair: str(pair.j), queen_state))
 
-        for q1 in state:
-            non_aggressive_queens = list(filter(lambda x: q1 != x, state))
+    # ...
+    def __queens_with_fitness(self, population):
+        # ...
+        def population_to_queens():
+            queens = list(map(lambda s: s.split('_'), population))
+            queens = list(map(lambda l: list(map(lambda x: Pair(x[0], int(x[1])), enumerate(l))), queens))
+    
+            return queens
 
-            for q2 in non_aggressive_queens:
-                if not attacking_each_other(q1, q2):
-                    non_attacking_positions.add(tuple(sorted([q1.i, q2.i, q1.j, q2.j])))
+        # ...
+        def fitness(state):
+            non_attacking_positions = set()
+    
+            for q1 in state:
+                non_aggressive_queens = list(filter(lambda x: q1 != x, state))
+    
+                for q2 in non_aggressive_queens:
+                    if not attacking_each_other(q1, q2):
+                        non_attacking_positions.add(tuple(sorted([q1.i, q2.i, q1.j, q2.j])))
+    
+            return len(non_attacking_positions)
 
-        return len(non_attacking_positions)
-
-    def __population_with_fitness(self, population):
+        # ...
         with_fitness = []
+        queens = population_to_queens()
 
-        for node in population:
-            map_ = enumerate([int(j) for j in node])
-            map_ = list(map(lambda x: Pair(x[0], x[1]), map_))
-            with_fitness.append(Pair(node, self.__fitness(map_)))
+        for node in queens:
+            with_fitness.append(Pair(node, fitness(node)))
 
         return with_fitness
 
+    # ...
+    def __str_to_queen_state(self, string):
+        # ...
+        columns = string.split('_')
+        queen_state = list(map(lambda x: Pair(x[0], int(x[1])), enumerate(columns)))
 
-ga_queen = GeneticAlgorithmQueenProblem(n=8, k=64, iterations=5, mutation_rate=0.003)
-framework_ga_queen = GeneticAlgorithmFramework(ga_queen)
-string, energy = framework_ga_queen.run()
-
-print(string)
-print(energy)
+        return queen_state
 
 class Report:
     def __init__(self, name, problem_size=None, params=None):
@@ -537,21 +603,35 @@ class Report:
 
         print("="*50)
 
+
+
 # Initialize the report to be used to analyze different metrics.
 report_csp = Report("CSP_Backtracking", problem_size=8, params={'method':'backtracking'})
 report_sa = Report("SimulatedAnnealing", problem_size=8, params={'method':'SA', 'iterations':200})
+report_ga = Report("GeneticAlgorithm", problem_size=8, params={'method':'GA'})
 
 csp_problem = CSP_QueenProblem(8, reporter=report_csp)
 csp_search = CSP_BacktrackingSearchFramework(csp_problem, reporter=report_csp)
+
 sa_problem = SimulatedAnnealingQueenProblem(8, iterations=200, reporter=report_sa)
 sa_search = SimulatedAnnealingFramework(sa_problem, reporter=report_sa)
+
+ga_problem = GeneticAlgorithmQueenProblem(8, 14, iterations=1024, mutation_rate=0.003, reporter=report_ga)
+ga_search = GeneticAlgorithmFramework(ga_problem, reporter=report_ga)
 
 # The run function is the function for which the report is to be written.
 csp_run_timed = report_csp.measure('csp_run')(csp_search.run)
 sa_run_timed = report_sa.measure('sa_run')(sa_search.run)
+ga_run_timed = report_ga.measure('ga_run')(ga_search.run)
 
-benchmark(report_csp, csp_run_timed, n_runs=5)
-benchmark(report_sa,  sa_run_timed,  n_runs=5)
+csp_solution = csp_run_timed()
+sa_solution = sa_run_timed()
+ga_solution = ga_run_timed()
+
+report_csp.set_result('csp_solution', csp_solution)
+report_sa.set_result('sa_solution', sa_solution)
+report_ga.set_result('ga_solution', ga_solution)
 
 report_csp.pretty_print()
 report_sa.pretty_print()
+report_ga.pretty_print()
