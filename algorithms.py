@@ -52,6 +52,16 @@ def random_int(a, b):
     random.shuffle(values)
     return values[0]
 
+# Executes the specified function with a timeout value.
+def exec(f, timeout=None):
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(f)
+            return future.result(timeout)
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        return None
+
 
 # The general framework for CSP problems. Values are chosen for one
 # variable at a time, and the process is reversed when a variable
