@@ -7,15 +7,107 @@ import functools
 
 from concurrent.futures.thread import ThreadPoolExecutor
 
-DEFAULT_TIMEOUT = 60
-QUEEN_SIZES = [2, 4, 6, 8, 10, 12, 14, 16]
-PROBLEMS = {
-    'backtracking': None,
-    'backtracking+mrv': None,
-    'simulated_annealing': None,
-    'simulated_annealing+geometric_cooling': None,
-    'genetic_algorithm': None
-}
+DISABLED_PROBLEMS = [
+    'backtracking',
+    'backtracking+mrv',
+    'simulated_annealing',
+    'simulated_annealing+geometric_cooling',
+    'genetic_algorithm'
+]
+
+def all_problems():
+    queen_sizes = [8, 10, 12, 14, 16]
+    default_timeout = 60
+    default_size = 8
+    default_iterations = 5_000
+    default_rate = 0.995
+
+    # Calculate the scaling factor using square root.
+    # Formula: timeout = default_timeout * pow(size, 1) / pow(default_size, 1).
+    def timeout(size):
+        if size <= default_size:
+            return default_timeout
+        
+        scaling_factor = pow(size, 1) / pow(default_size, 1)
+        return round(default_timeout * scaling_factor)
+    
+    # Calculate the scaling factor using the power of 2.
+    # Formula: iterations = default_iterations * pow(size, 2) / pow(default_size, 2).
+    def iterations(size):
+        if size <= default_size:
+            return default_iterations
+        
+        scaling_factor = pow(size, 2) / pow(default_size, 2)
+        return round(default_iterations * scaling_factor)
+    
+    # Calculates a starting temperature based on problem size.
+    # Larger problems need more energy to explore.
+    def temperature(size):
+        return max(1.0, size / 2.0)
+    
+    # Calculates a cooling rate based on problem size.
+    # Larger problems need to cool more slowly.
+    def cooling_rate(size):
+
+        # Assumes that the gap from 1.0 is inversely
+        # proportional to the size of the problem.
+        # Formula: rate = 1.0 - (cooling_constant / size).
+        def cooling_constant():
+            epsilon_base = 1.0 - default_rate
+            return epsilon_base * default_size
+
+        # Use the base_rate for any size at or below the base size.
+        if size <= default_size:
+            return default_rate
+        
+        # Calculate the rate using the formula and make sure
+        # the rate never exceeds 1.0.
+        return min(1.0 - (cooling_constant() / size), 0.99999999)
+
+    # All different approaches that will try to solve the N-Queen problem.
+    problems = {
+        'backtracking': [],
+        'backtracking+mrv': [],
+        'simulated_annealing': [],
+        'simulated_annealing+geometric_cooling': [],
+        'genetic_algorithm': []
+    }
+
+    for size in queen_sizes:
+        problems['backtracking'].append({
+            'size': size,
+            'timeout': timeout(size)
+        })
+
+        problems['backtracking+mrv'].append({
+            'size': size,
+            'timeout': timeout(size)
+        })
+
+        problems['simulated_annealing'].append({
+            'size': size,
+            'iterations': iterations(size),
+            'timeout': timeout(size)
+        })
+
+        problems['simulated_annealing+geometric_cooling'].append({
+            'size': size,
+            'iterations': float('inf'),
+            'temperature': temperature(size),
+            'rate': cooling_rate(size),
+            'timeout': timeout(size)
+        })
+
+        problems['genetic_algorithm'].append({
+            'size': size,
+            'k': round(pow(size, 0.80)),
+            'iterations': float('inf'),
+            'mutation_rate': 0.003,
+            'timeout': timeout(size)
+        })
+
+    return problems
+
 
 # The positions of the queen on the chessboard.
 Pair = collections.namedtuple('Pair', ['i', 'j'])
@@ -537,6 +629,9 @@ class GeneticAlgorithmQueenProblem:
         # Whenever there is at least one state with maximum
         # fit, the algorithm should stop.
         max_fit = round(arithmetic_series(1, 1, self.n - 1))
+        if self.reporter is not None:
+            self.reporter.set_result('fit_to_reach', max_fit)
+
         with_fitness = self.__queens_with_fitness(population)
         return len(list(filter(lambda x: x.j >= max_fit, with_fitness))) != 0
 
@@ -557,8 +652,6 @@ class GeneticAlgorithmQueenProblem:
                 new_board.append(second_queen_board[index])
 
         return self.__queen_state_to_str(new_board)
-            
-
 
     # Mapping from chessboard representation to string representation.
     def __queen_state_to_str(self, queen_state):
@@ -662,22 +755,69 @@ class Report:
         print("="*50)
 
 def benchmark():
-    # ...
-    for size in QUEEN_SIZES:
-        for problem in PROBLEMS:
-            if problem == 'backtracking':
-                # ...
-                reporter = Report(problem, problem_size=size)
-                problem =  CSP_QueenProblem(n_queens=size, reporter=reporter)
-                framework = CSP_BacktrackingSearchFramework(problem, reporter=reporter)
-                result = exec(reporter.measure('run')(framework.run), timeout=DEFAULT_TIMEOUT)
+    def run(framework, reporter, timeout):
+        result = exec(reporter.measure('run')(framework.run), timeout=timeout)
+        
+        if result is None:
+            reporter.set_result('solution', 'Timeout occurred: > ' + str(timeout) + 's')
+        else:
+            reporter.set_result('solution', result)
 
-                # ...
-                if result is None:
-                    reporter.set_result('solution', 'Timeout occurred: > ' + str(DEFAULT_TIMEOUT) + 's')
+        reporter.pretty_print()
+
+    for key, values in all_problems().items():
+
+        if DISABLED_PROBLEMS.count(key):
+            continue
+
+        for params in values: 
+
+            size = params['size']
+            timeout = params['timeout']
+
+            reporter = Report(key, problem_size=size, params=params)
+
+            if ['backtracking', 'backtracking+mrv'].count(key) != 0:
+
+                problem = None
+
+                if key == 'backtracking':
+                    problem = CSP_QueenProblem(size, reporter)
                 else:
-                    reporter.set_result('solution', result)
+                    problem = CSP_QueenProblemMRV(size, reporter)
 
-                reporter.pretty_print()
+                run(CSP_BacktrackingSearchFramework(problem, reporter), reporter, timeout)
+
+            if ['simulated_annealing', 'simulated_annealing+geometric_cooling'].count(key) != 0:
+
+                problem = None
+
+                if key == 'simulated_annealing':
+                    problem = SimulatedAnnealingQueenProblem(
+                        n_queens=size,
+                        iterations=params['iterations'],
+                        reporter=reporter
+                    )
+                else:
+                    problem = SimulatedAnnealingQueenProblemGeometricCooling(
+                        n_queens=size,
+                        iterations=params['iterations'],
+                        temperature=params['temperature'],
+                        rate=params['rate'],
+                        reporter=reporter)
+                    
+                run(SimulatedAnnealingFramework(problem, reporter), reporter, timeout)
+
+            if ['genetic_algorithm'].count(key) != 0:
+
+                problem = GeneticAlgorithmQueenProblem(
+                    size,
+                    params['k'],
+                    params['iterations'],
+                    params['mutation_rate'],
+                    reporter
+                )
+
+                run(GeneticAlgorithmFramework(problem, reporter), reporter, timeout)
 
 benchmark()
