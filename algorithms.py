@@ -4,6 +4,7 @@ import time
 import random
 import math
 import functools
+import json
 
 from concurrent.futures.thread import ThreadPoolExecutor
 
@@ -16,7 +17,14 @@ DISABLED_PROBLEMS = [
 ]
 
 def all_problems():
-    queen_sizes = [8, 10, 12, 14, 16]
+    queen_sizes = [
+        8, 10, 12, 14,
+        16, 18, 20, 22,
+        24, 26, 28, 30,
+        32, 64, 65, 67,
+        80, 90, 100, 128
+    ]
+
     default_timeout = 60
     default_size = 8
     default_iterations = 5_000
@@ -755,15 +763,26 @@ class Report:
         print("="*50)
 
 def benchmark():
+    def append_to_jsonl(filepath, data):
+        with open(filepath, 'a', encoding='utf-8') as f:
+            # Serialize the dictionary to a JSON string and
+            # write the JSON string followed by a newline character.
+            json_line = json.dumps(data)
+            f.write(json_line + '\n')
+
     def run(framework, reporter, timeout):
         result = exec(reporter.measure('run')(framework.run), timeout=timeout)
         
         if result is None:
-            reporter.set_result('solution', 'Timeout occurred: > ' + str(timeout) + 's')
+            reporter.set_result('failure', 'Timeout occurred: > ' + str(timeout) + 's')
         else:
             reporter.set_result('solution', result)
 
-        reporter.pretty_print()
+        # ...
+        append_to_jsonl(
+            filepath=reporter.name + '.jsonl',
+            data=reporter.summary()
+        )
 
     for key, values in all_problems().items():
 
