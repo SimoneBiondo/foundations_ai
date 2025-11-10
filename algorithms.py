@@ -32,12 +32,12 @@ def all_problems():
 
     # Calculate the scaling factor using square root.
     # Formula: timeout = default_timeout * pow(size, 1) / pow(default_size, 1).
-    def timeout(size):
-        if size <= default_size:
-            return default_timeout
+    def timeout(size, base_size=default_size, base_timeout=default_timeout):
+        if size <= base_size:
+            return base_timeout
         
-        scaling_factor = pow(size, 1) / pow(default_size, 1)
-        return round(default_timeout * scaling_factor)
+        scaling_factor = pow(size, 1) / pow(base_size, 1)
+        return round(base_timeout * scaling_factor)
     
     # Calculate the scaling factor using the power of 2.
     # Formula: iterations = default_iterations * pow(size, 2) / pow(default_size, 2).
@@ -55,18 +55,18 @@ def all_problems():
     
     # Calculates a cooling rate based on problem size.
     # Larger problems need to cool more slowly.
-    def cooling_rate(size):
+    def cooling_rate(size, base_size=default_size, base_rate=default_rate):
 
         # Assumes that the gap from 1.0 is inversely
         # proportional to the size of the problem.
         # Formula: rate = 1.0 - (cooling_constant / size).
         def cooling_constant():
-            epsilon_base = 1.0 - default_rate
-            return epsilon_base * default_size
+            epsilon_base = 1.0 - base_rate
+            return epsilon_base * base_size
 
         # Use the base_rate for any size at or below the base size.
-        if size <= default_size:
-            return default_rate
+        if size <= base_size:
+            return base_rate
         
         # Calculate the rate using the formula and make sure
         # the rate never exceeds 1.0.
