@@ -12,7 +12,10 @@ DISABLED_PROBLEMS = [
     'backtracking',
     'backtracking+mrv',
     'simulated_annealing',
-    'simulated_annealing+geometric_cooling',
+    'simulated_annealing+geometric_cooling+dt+dr0_995',
+    'simulated_annealing+geometric_cooling+dt+dr0_7',
+    'simulated_annealing+geometric_cooling+ft1_0+dr0_995',
+    'simulated_annealing+geometric_cooling+ft1_0+dr0_7',
     'genetic_algorithm'
 ]
 
