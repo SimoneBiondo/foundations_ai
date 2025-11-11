@@ -80,7 +80,10 @@ def all_problems():
         'backtracking': [],
         'backtracking+mrv': [],
         'simulated_annealing': [],
-        'simulated_annealing+geometric_cooling': [],
+        'simulated_annealing+geometric_cooling+dt+dr0_995': [],
+        'simulated_annealing+geometric_cooling+dt+dr0_7': [],
+        'simulated_annealing+geometric_cooling+ft1_0+dr0_995': [],
+        'simulated_annealing+geometric_cooling+ft1_0+dr0_7': [],
         'genetic_algorithm': []
     }
 
@@ -98,15 +101,39 @@ def all_problems():
         problems['simulated_annealing'].append({
             'size': size,
             'iterations': iterations(size),
-            'timeout': timeout(size)
+            'timeout': timeout(size, base_timeout=10)
         })
 
-        problems['simulated_annealing+geometric_cooling'].append({
+        problems['simulated_annealing+geometric_cooling+dt+dr0_995'].append({
             'size': size,
             'iterations': float('inf'),
             'temperature': temperature(size),
             'rate': cooling_rate(size),
-            'timeout': timeout(size)
+            'timeout': timeout(size, base_timeout=10)
+        })
+
+        problems['simulated_annealing+geometric_cooling+dt+dr0_7'].append({
+            'size': size,
+            'iterations': float('inf'),
+            'temperature': temperature(size),
+            'rate': cooling_rate(size, base_rate=0.7),
+            'timeout': timeout(size, base_timeout=10)
+        })
+
+        problems['simulated_annealing+geometric_cooling+ft1_0+dr0_995'].append({
+            'size': size,
+            'iterations': float('inf'),
+            'temperature': 1.0,
+            'rate': cooling_rate(size),
+            'timeout': timeout(size, base_timeout=10)
+        })
+
+        problems['simulated_annealing+geometric_cooling+ft1_0+dr0_7'].append({
+            'size': size,
+            'iterations': float('inf'),
+            'temperature': 1.0,
+            'rate': cooling_rate(size, base_rate=0.7),
+            'timeout': timeout(size, base_timeout=10)
         })
 
         problems['genetic_algorithm'].append({
@@ -810,7 +837,7 @@ def benchmark():
 
                 run(CSP_BacktrackingSearchFramework(problem, reporter), reporter, timeout)
 
-            if ['simulated_annealing', 'simulated_annealing+geometric_cooling'].count(key) != 0:
+            if ['simulated_annealing', 'simulated_annealing+geometric_cooling+dt+dr0_995', 'simulated_annealing+geometric_cooling+dt+dr0_7', 'simulated_annealing+geometric_cooling+ft1_0+dr0_995', 'simulated_annealing+geometric_cooling+ft1_0+dr0_7'].count(key) != 0:
 
                 problem = None
 
