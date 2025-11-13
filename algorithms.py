@@ -16,6 +16,7 @@ DISABLED_PROBLEMS = [
     'simulated_annealing+geometric_cooling+dt+dr0_7',
     'simulated_annealing+geometric_cooling+ft1_0+dr0_995',
     'simulated_annealing+geometric_cooling+ft1_0+dr0_7',
+    #'simulated_annealing+no_successors+dt+dr0_7',
     'genetic_algorithm'
 ]
 
@@ -82,6 +83,7 @@ def all_problems():
         'simulated_annealing+geometric_cooling+dt+dr0_7': [],
         'simulated_annealing+geometric_cooling+ft1_0+dr0_995': [],
         'simulated_annealing+geometric_cooling+ft1_0+dr0_7': [],
+        'simulated_annealing+no_successors+dt+dr0_7': [],
         'genetic_algorithm': []
     }
 
@@ -132,6 +134,14 @@ def all_problems():
             'temperature': 1.0,
             'rate': cooling_rate(size, base_rate=0.7),
             'timeout': timeout(size, base_timeout=25)
+        })
+
+        problems['simulated_annealing+no_successors+dt+dr0_7'].append({
+            'size': size,
+            'iterations': float('inf'),
+            'temperature': temperature(size),
+            'rate': cooling_rate(size, base_rate=0.7),
+            'timeout': timeout(size, base_timeout=8)
         })
 
         problems['genetic_algorithm'].append({
@@ -189,6 +199,11 @@ def exec(f, timeout=None):
     except Exception as err:
         print(f"Unexpected {err=}, {type(err)=}")
         return None
+    
+# ...
+def report_c(reporter, key, amount):
+    if reporter is not None:
+        reporter.counter(key, amount)
 
 
 # The general framework for CSP problems. Values are chosen for one
@@ -217,8 +232,7 @@ class CSP_BacktrackingSearchFramework:
 
         # Count of the number of nodes visited, meaning that
         # a different configuration is being explored.
-        if self.reporter is not None:
-            self.reporter.counter('nodes_expanded', 1)
+        report_c(self.reporter, 'nodes_expanded', 1)
     
         # A value is chosen from the domain of the selected variable.
         for value in self.csp_problem.order_domain_values(variable, assignment):
@@ -427,6 +441,9 @@ class SimulatedAnnealingFramework:
                 if random.random() < math.exp(exponent):
                     current_state = next_state
 
+                    if self.reporter is not None:
+                        self.reporter.set_time('changes')
+
 class SimulatedAnnealingQueenProblem:
     def __init__(self, n_queens, iterations, reporter=None):
         self.iterations = iterations
@@ -487,6 +504,30 @@ class SimulatedAnnealingQueenProblemGeometricCooling(SimulatedAnnealingQueenProb
 
         self.temperature = self.temperature * self.rate
         return self.temperature
+    
+class SimulatedAnnealingWithoutSuccessors(SimulatedAnnealingQueenProblemGeometricCooling):
+    def __init__(self, n_queens, iterations, temperature, rate, reporter=None):
+        super().__init__(n_queens, iterations, temperature, rate, reporter)
+
+    def successors(self, state):
+        N = self.n_queens
+
+        # A queen is chosen.
+        row = random_int(0, N - 1)
+        queen = state[row]
+
+        # A random column, except the one already occupied.
+        occupied = queen.j
+
+        first = [] if 0 > occupied - 1 else [random_int(0, occupied - 1)]
+        second = [] if occupied + 1 > N - 1 else [random_int(occupied + 1, N - 1)]
+
+        columns = first + second
+        random.shuffle(columns)
+        new_column = columns[0]
+
+        # The changed state.
+        return [[Pair(q.i, q.j) if row != q.i else Pair(q.i, new_column) for q in state]];
 
 class GeneticAlgorithmFramework:
     def __init__(self, problem, reporter=None):
@@ -738,6 +779,7 @@ class Report:
         self.params = params or {}
         self.counters = collections.Counter()
         self.timing = {}
+        self.timeseries = {}
         self.results = {}
 
     def measure(self, key=None):
@@ -755,6 +797,12 @@ class Report:
 
     def counter(self, name, amount=1):
         self.counters[name] += amount
+
+    def set_time(self, name):
+        if self.timeseries.get(name) is None:
+            self.timeseries[name] = []
+
+        self.timeseries[name].append(time.time())
 
     def set_result(self, key, value):
         self.results[key] = value
@@ -812,6 +860,15 @@ def benchmark():
             data=reporter.summary()
         )
 
+        for name, series in reporter.timeseries.items():
+            append_to_jsonl(
+                filepath=reporter.name + name + '.timeseries' + '.jsonl',
+                data={
+                    'size': reporter.problem_size,
+                    'series': series
+                }
+            )
+
     for key, values in all_problems().items():
 
         if DISABLED_PROBLEMS.count(key):
@@ -835,14 +892,21 @@ def benchmark():
 
                 run(CSP_BacktrackingSearchFramework(problem, reporter), reporter, timeout)
 
-            if ['simulated_annealing', 'simulated_annealing+geometric_cooling+dt+dr0_995', 'simulated_annealing+geometric_cooling+dt+dr0_7', 'simulated_annealing+geometric_cooling+ft1_0+dr0_995', 'simulated_annealing+geometric_cooling+ft1_0+dr0_7'].count(key) != 0:
-
+            if ['simulated_annealing', 'simulated_annealing+geometric_cooling+dt+dr0_995', 'simulated_annealing+geometric_cooling+dt+dr0_7', 'simulated_annealing+geometric_cooling+ft1_0+dr0_995', 'simulated_annealing+geometric_cooling+ft1_0+dr0_7', 'simulated_annealing+no_successors+dt+dr0_7'].count(key) != 0:
                 problem = None
 
                 if key == 'simulated_annealing':
                     problem = SimulatedAnnealingQueenProblem(
                         n_queens=size,
                         iterations=params['iterations'],
+                        reporter=reporter
+                    )
+                elif key == 'simulated_annealing+no_successors+dt+dr0_7':
+                    problem = SimulatedAnnealingWithoutSuccessors(
+                        n_queens=size,
+                        iterations=params['iterations'],
+                        temperature=params['temperature'],
+                        rate=params['rate'],
                         reporter=reporter
                     )
                 else:
