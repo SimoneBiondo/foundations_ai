@@ -70,10 +70,8 @@ def all_problems():
         # Use the base_rate for any size at or below the base size.
         if size <= base_size:
             return base_rate
-        
-        # Calculate the rate using the formula and make sure
-        # the rate never exceeds 1.0.
-        return min(1.0 - (cooling_constant() / size), 0.99999999)
+
+        return 1.0 - (cooling_constant() / size)
 
     # All different approaches that will try to solve the N-Queen problem.
     problems = {
@@ -101,7 +99,7 @@ def all_problems():
         problems['simulated_annealing'].append({
             'size': size,
             'iterations': iterations(size),
-            'timeout': timeout(size, base_timeout=10)
+            'timeout': timeout(size, base_timeout=25)
         })
 
         problems['simulated_annealing+geometric_cooling+dt+dr0_995'].append({
@@ -109,7 +107,7 @@ def all_problems():
             'iterations': float('inf'),
             'temperature': temperature(size),
             'rate': cooling_rate(size),
-            'timeout': timeout(size, base_timeout=10)
+            'timeout': timeout(size, base_timeout=25)
         })
 
         problems['simulated_annealing+geometric_cooling+dt+dr0_7'].append({
@@ -117,7 +115,7 @@ def all_problems():
             'iterations': float('inf'),
             'temperature': temperature(size),
             'rate': cooling_rate(size, base_rate=0.7),
-            'timeout': timeout(size, base_timeout=10)
+            'timeout': timeout(size, base_timeout=25)
         })
 
         problems['simulated_annealing+geometric_cooling+ft1_0+dr0_995'].append({
@@ -125,7 +123,7 @@ def all_problems():
             'iterations': float('inf'),
             'temperature': 1.0,
             'rate': cooling_rate(size),
-            'timeout': timeout(size, base_timeout=10)
+            'timeout': timeout(size, base_timeout=25)
         })
 
         problems['simulated_annealing+geometric_cooling+ft1_0+dr0_7'].append({
@@ -133,7 +131,7 @@ def all_problems():
             'iterations': float('inf'),
             'temperature': 1.0,
             'rate': cooling_rate(size, base_rate=0.7),
-            'timeout': timeout(size, base_timeout=10)
+            'timeout': timeout(size, base_timeout=25)
         })
 
         problems['genetic_algorithm'].append({
