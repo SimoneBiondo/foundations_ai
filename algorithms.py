@@ -22,8 +22,9 @@ DISABLED_PROBLEMS = [
 
 GENERATE_TIME_SERIES = False
 
+QUEEN_SIZES = [8, 16]
+
 def all_problems():
-    queen_sizes = [8, 16]
 
     default_timeout = 60
     default_size = 8
@@ -83,7 +84,7 @@ def all_problems():
         'genetic_algorithm': []
     }
 
-    for size in queen_sizes:
+    for size in QUEEN_SIZES:
         problems['backtracking'].append({
             'size': size,
             'timeout': timeout(size)

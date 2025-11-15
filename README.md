@@ -14,6 +14,10 @@ This list is used to explicitly exclude certain problem instances or sizes from 
 
 This flag determines whether a detailed record of the algorithm's measurements over time should be saved to a file.
 
+#### QUEEN_SIZES
+
+This list determines which sizes will be covered by the tests.
+
 ### Running the Test Suite
 
 To execute the entire test suite, including all configured algorithms and problems (excluding those defined in DISABLED_PROBLEMS), simply run the main script from your terminal:
