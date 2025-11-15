@@ -9,23 +9,21 @@ import json
 from concurrent.futures.thread import ThreadPoolExecutor
 
 DISABLED_PROBLEMS = [
-    #backtracking',
-    #backtracking+mrv',
-    #simulated_annealing',
-    #simulated_annealing+geometric_cooling+dt+dr0_995',
-    #simulated_annealing+geometric_cooling+dt+dr0_7',
-    #simulated_annealing+geometric_cooling+ft1_0+dr0_995',
-    #simulated_annealing+geometric_cooling+ft1_0+dr0_7',
-    #simulated_annealing+no_successors+dt+dr0_7',
+    #'backtracking',
+    #'backtracking+mrv',
+    #'simulated_annealing',
+    #'simulated_annealing+geometric_cooling+dt+dr0_995',
+    #'simulated_annealing+geometric_cooling+dt+dr0_7',
+    #'simulated_annealing+geometric_cooling+ft1_0+dr0_995',
+    #'simulated_annealing+geometric_cooling+ft1_0+dr0_7',
+    #'simulated_annealing+no_successors+dt+dr0_7',
     #'genetic_algorithm'
 ]
 
 GENERATE_TIME_SERIES = False
 
 def all_problems():
-    queen_sizes = [
-        8, 10, 12, 14, 16
-    ]
+    queen_sizes = [8, 16]
 
     default_timeout = 60
     default_size = 8
