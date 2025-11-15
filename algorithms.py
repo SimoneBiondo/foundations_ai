@@ -325,11 +325,8 @@ class CSP_QueenProblem:
         # in no particular order.
         return assigment['unassigned_queens'][0]
 
-    def order_domain_values(self, variable, assigment):
-        # All available values are returned, even
-        # potentially inconsistent ones, in no particular order.
-        for j in range(0, self.n_queens):
-            yield Pair(variable.i, j)
+    def order_domain_values(self, variable, assignment):
+        return sorted(list(self.domain(variable, assignment)), key=lambda x: x.j)
 
     def is_consistent(self, variable, value, assignment):
         # The queen (i, j) that was chosen for the given variable (Q_ij)
