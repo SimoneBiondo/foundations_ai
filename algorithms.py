@@ -287,13 +287,17 @@ class CSP_QueenProblem:
         removed_values = inferences[variable]
         domain = set()
 
-        # The domain is calculated using inferences,
-        # which are the set of values ​​removed from
-        # the domain of each variable.
-        for column in range(self.n_queens):
-            value = Pair(variable.i, column)
-            if value not in removed_values:
-                domain.add(value)
+        if variable.j is not None:
+            # The variable is already assigned, so the domain is trivial.
+            domain.add(variable)
+        else:
+            # The domain is calculated using inferences,
+            # which are the set of values ​​removed from
+            # the domain of each variable.
+            for column in range(self.n_queens):
+                value = Pair(variable.i, column)
+                if value not in removed_values:
+                    domain.add(value)
         
         return domain
 
