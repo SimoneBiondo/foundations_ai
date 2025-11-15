@@ -74,6 +74,7 @@ def all_problems():
     # All different approaches that will try to solve the N-Queen problem.
     problems = {
         'backtracking': [],
+        'backtracking+inferences': [],
         'backtracking+mrv': [],
         'simulated_annealing': [],
         'simulated_annealing+geometric_cooling+dt+dr0_995': [],
@@ -86,6 +87,11 @@ def all_problems():
 
     for size in QUEEN_SIZES:
         problems['backtracking'].append({
+            'size': size,
+            'timeout': timeout(size)
+        })
+
+        problems['backtracking+inferences'].append({
             'size': size,
             'timeout': timeout(size)
         })
@@ -196,11 +202,57 @@ def exec(f, timeout=None):
     except Exception as err:
         print(f"Unexpected {err=}, {type(err)=}")
         return None
-    
-def report_c(reporter, key, amount):
-    if reporter is not None:
-        reporter.counter(key, amount)
 
+class AC3:
+    def __init__(self, csp, arc_list, assignment):
+        self.csp = csp
+        self.arc_list = arc_list
+        self.assignment = assignment
+
+    def run(self):
+        arcs = collections.deque(self.arc_list)
+        domains = {}
+
+        while len(arcs) != 0:
+            arc = arcs.popleft()
+
+            x = arc.i
+            y = arc.j
+
+            # Domain assignment at the first meeting.
+            if domains.get(x) is None:
+                domains[x] = self.csp.domain(x, self.assignment)
+
+            if domains.get(y) is None:
+                domains[y] = self.csp.domain(y, self.assignment)
+
+            if self.__revise(domains, x, y) != 0:
+                # If a domain is empty, this should be interpreted as a failure.
+                if len(domains[x]) == 0:
+                    return None
+                
+                for k in self.csp.neighbors(x, self.assignment):
+                    new_arc = Pair(k, x)
+
+                    # Appending the new arc only if not present and it is different from 
+                    if k != y and arcs.count(new_arc) == 0:
+                        arcs.append(new_arc)
+    
+        return domains
+
+    def __revise(self, domains, x, y):
+        revised = False
+        r_values = set()
+
+        for vx in domains[x]:
+            if not self.csp.exist_consistent(vx, domains[y]):
+                r_values.add(vx)
+                revised = True
+
+        for r_value in r_values:
+            domains[x].remove(r_value)
+
+        return revised
 
 # The general framework for CSP problems. Values are chosen for one
 # variable at a time, and the process is reversed when a variable
@@ -228,7 +280,8 @@ class CSP_BacktrackingSearchFramework:
 
         # Count of the number of nodes visited, meaning that
         # a different configuration is being explored.
-        report_c(self.reporter, 'nodes_expanded', 1)
+        if self.reporter is not None:
+            self.reporter.counter('nodes_expanded')
     
         # A value is chosen from the domain of the selected variable.
         for value in self.csp_problem.order_domain_values(variable, assignment):
@@ -286,10 +339,11 @@ class CSP_QueenProblem:
         inferences = assignment['inferences']
         removed_values = inferences[variable]
         domain = set()
+        assigned = assignment['assigned_queens']
 
-        if variable.j is not None:
+        if variable.i in set(map(lambda q: q.i, assigned)):
             # The variable is already assigned, so the domain is trivial.
-            domain.add(variable)
+            domain.add(list(filter(lambda q: q.i == variable.i, assigned))[0])
         else:
             # The domain is calculated using inferences,
             # which are the set of values ​​removed from
@@ -308,7 +362,7 @@ class CSP_QueenProblem:
         for q in domain:
             if not attacking_each_other(value, q):
                 return True
-            
+
         return False
 
     def is_complete(self, assignment):
@@ -376,8 +430,66 @@ class CSP_QueenProblem:
         # A state without queens.
         return {
             'assigned_queens': [],
-            'unassigned_queens': []
+            'unassigned_queens': [],
+            'inferences': {}
         }
+
+class CSP_QueenProblemInferences(CSP_QueenProblem):
+    def __init__(self, n_queens, reporter=None):
+        super().__init__(n_queens, reporter)
+
+    def inferences(self, variable, value, assignment):
+        arcs = self.__arcs(variable, value, assignment)
+        domains = AC3(self, arcs, assignment).run()
+
+        # When AC3 detects that no consistency can
+        # be achieved, None is returned.
+        if domains is None:
+            return domains
+        
+        # ...
+        inferences = {}
+        
+        # ...
+        for var, new_domain in domains.items():
+
+            if inferences.get(var) is None:
+                inferences[var] = set()
+
+            # The new domain can only be a subset ...
+            old_domain = self.domain(var, assignment)
+
+            for val in old_domain:
+                # ...
+                if val not in new_domain:
+                    inferences[var].add(val)
+
+        return inferences
+    
+    def is_inferences_valid(self, inferences):
+        return inferences is not None
+    
+    def assign_inferences(self, inferences, assignment):
+        if inferences is not None:
+            for var, r_domain in inferences.items():
+                for r_val in r_domain:
+                    assignment['inferences'][var].add(r_val)
+    
+    def remove_assigned_inferences(self, inferences, assignment):
+        if inferences is not None:
+            for var, r_domain in inferences.items():
+                for r_val in r_domain:
+                    assignment['inferences'][var].remove(r_val)
+    
+    def __arcs(self, variable, _, assignment):
+        # After a variable Xi is assigned a value the inference
+        # procedure calls AC-3 with only the arcs (Xj , Xi)
+        # for all Xj that are unassigned variables that
+        # are neighbors of Xi.
+        arcs = [Pair(q, variable) for q in assignment['unassigned_queens']]
+        arcs = list(filter(lambda q: q.i != q.j, arcs))
+    
+        return arcs
 
 class CSP_QueenProblemMRV(CSP_QueenProblem):
     def __init__(self, n_queens, reporter=None):
@@ -878,7 +990,7 @@ def benchmark():
             json_line = json.dumps(data)
             f.write(json_line + '\n')
 
-    def run(framework, reporter, timeout):
+    def run(framework, reporter, timeout, f=None):
         result = exec(reporter.measure('run')(framework.run), timeout=timeout)
         
         if result is None:
@@ -886,10 +998,11 @@ def benchmark():
         else:
             reporter.set_result('solution', result)
 
-        # ...
+        data = reporter.summary() if f is None else f(reporter.summary())
+
         append_to_jsonl(
             filepath=reporter.name + '.jsonl',
-            data=reporter.summary()
+            data=data
         )
 
         if GENERATE_TIME_SERIES:
@@ -914,16 +1027,23 @@ def benchmark():
 
             reporter = Report(key, problem_size=size, params=params)
 
-            if ['backtracking', 'backtracking+mrv'].count(key) != 0:
+            if ['backtracking', 'backtracking+mrv', 'backtracking+inferences'].count(key) != 0:
+
+                def mangle(data):
+                    queens = data['results']['solution']['assigned_queens']
+                    data['results'] = queens
+                    return data
 
                 problem = None
 
                 if key == 'backtracking':
                     problem = CSP_QueenProblem(size, reporter)
+                elif key == 'backtracking+inferences':
+                    problem = CSP_QueenProblemInferences(size, reporter)
                 else:
                     problem = CSP_QueenProblemMRV(size, reporter)
 
-                run(CSP_BacktrackingSearchFramework(problem, reporter), reporter, timeout)
+                run(CSP_BacktrackingSearchFramework(problem, reporter), reporter, timeout, mangle)
 
             if ['simulated_annealing', 'simulated_annealing+geometric_cooling+dt+dr0_995', 'simulated_annealing+geometric_cooling+dt+dr0_7', 'simulated_annealing+geometric_cooling+ft1_0+dr0_995', 'simulated_annealing+geometric_cooling+ft1_0+dr0_7', 'simulated_annealing+no_successors+dt+dr0_7'].count(key) != 0:
                 problem = None
