@@ -9,24 +9,22 @@ import json
 from concurrent.futures.thread import ThreadPoolExecutor
 
 DISABLED_PROBLEMS = [
-    'backtracking',
-    'backtracking+mrv',
-    'simulated_annealing',
-    'simulated_annealing+geometric_cooling+dt+dr0_995',
-    'simulated_annealing+geometric_cooling+dt+dr0_7',
-    'simulated_annealing+geometric_cooling+ft1_0+dr0_995',
-    'simulated_annealing+geometric_cooling+ft1_0+dr0_7',
-    #'simulated_annealing+no_successors+dt+dr0_7',
-    'genetic_algorithm'
+    #backtracking',
+    #backtracking+mrv',
+    #simulated_annealing',
+    #simulated_annealing+geometric_cooling+dt+dr0_995',
+    #simulated_annealing+geometric_cooling+dt+dr0_7',
+    #simulated_annealing+geometric_cooling+ft1_0+dr0_995',
+    #simulated_annealing+geometric_cooling+ft1_0+dr0_7',
+    #simulated_annealing+no_successors+dt+dr0_7',
+    #'genetic_algorithm'
 ]
+
+GENERATE_TIME_SERIES = False
 
 def all_problems():
     queen_sizes = [
-        8, 10, 12, 14,
-        16, 18, 20, 22,
-        24, 26, 28, 30,
-        32, 64, 65, 67,
-        80, 90, 100, 128
+        8, 10, 12, 14, 16
     ]
 
     default_timeout = 60
@@ -860,14 +858,15 @@ def benchmark():
             data=reporter.summary()
         )
 
-        for name, series in reporter.timeseries.items():
-            append_to_jsonl(
-                filepath=reporter.name + name + '.timeseries' + '.jsonl',
-                data={
-                    'size': reporter.problem_size,
-                    'series': series
-                }
-            )
+        if GENERATE_TIME_SERIES:
+            for name, series in reporter.timeseries.items():
+                append_to_jsonl(
+                    filepath=reporter.name + name + '.timeseries' + '.jsonl',
+                    data={
+                        'size': reporter.problem_size,
+                        'series': series
+                    }
+                )
 
     for key, values in all_problems().items():
 
