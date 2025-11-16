@@ -11,6 +11,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 DISABLED_PROBLEMS = [
     #'backtracking',
     #'backtracking+mrv',
+    #'backtracking+inferences',
     #'simulated_annealing',
     #'simulated_annealing+geometric_cooling+dt+dr0_995',
     #'simulated_annealing+geometric_cooling+dt+dr0_7',
