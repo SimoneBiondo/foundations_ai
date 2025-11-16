@@ -12,6 +12,7 @@ DISABLED_PROBLEMS = [
     #'backtracking',
     #'backtracking+mrv',
     #'backtracking+inferences',
+    #'backtracking+mrv+inferences',
     #'simulated_annealing',
     #'simulated_annealing+geometric_cooling+dt+dr0_995',
     #'simulated_annealing+geometric_cooling+dt+dr0_7',
@@ -23,7 +24,7 @@ DISABLED_PROBLEMS = [
 
 GENERATE_TIME_SERIES = False
 
-QUEEN_SIZES = [8, 16]
+QUEEN_SIZES = [8]
 
 def all_problems():
 
@@ -77,6 +78,7 @@ def all_problems():
         'backtracking': [],
         'backtracking+inferences': [],
         'backtracking+mrv': [],
+        'backtracking+mrv+inferences': [],
         'simulated_annealing': [],
         'simulated_annealing+geometric_cooling+dt+dr0_995': [],
         'simulated_annealing+geometric_cooling+dt+dr0_7': [],
@@ -98,6 +100,11 @@ def all_problems():
         })
 
         problems['backtracking+mrv'].append({
+            'size': size,
+            'timeout': timeout(size)
+        })
+
+        problems['backtracking+mrv+inferences'].append({
             'size': size,
             'timeout': timeout(size)
         })
@@ -186,6 +193,53 @@ def attacking_each_other(q1, q2):
     ]
 
     return len(list(filter(lambda x: x, conditions))) != 0
+
+# Applying the MRV heuristic to the N-Queens problem.
+def mrv_order(csp_queen, assigment):
+    assigned = assigment['assigned_queens']
+    unassigned = assigment['unassigned_queens']
+
+    def count_legal_moves(variable):
+        # Counter to keep track of the total number of moves.
+        total = 0
+
+        # Iterate through all available columns to measure
+        # how many legal moves the given variable has.
+        for column in range(csp_queen.n_queens):
+            q1 = Pair(variable.i, column)
+            is_legal = True
+
+            # After assigning a column, check to see if there is
+            # at least one attacking queen. If there is an
+            # attacking queen, it cannot be considered a legal move.
+            for q2 in assigned:
+                # Further comparisons to select the most appropriate order.
+                if csp_queen.reporter is not None:
+                    csp_queen.reporter.counter('comparisons', 1)
+
+                if attacking_each_other(q1, q2):
+                    is_legal = False
+                    break
+            
+            # Increase the counter only if the selected column
+            # is consistent with all other queens already assigned.
+            if is_legal:
+                total = total + 1
+
+        return total
+
+    # Keep track of the remaining minimum values.
+    min_moves = float('inf')
+    current_min = None
+
+    for variable in unassigned:
+        current_moves = count_legal_moves(variable)
+
+        if current_moves < min_moves:
+            min_moves = current_moves
+            current_min = variable
+
+    return current_min
 
 # Generates an array of integers from a to b,
 # returning the first element after a shuffle.
@@ -497,50 +551,14 @@ class CSP_QueenProblemMRV(CSP_QueenProblem):
         super().__init__(n_queens, reporter)
 
     def select_unassigned_variable(self, assigment):
-        assigned = assigment['assigned_queens']
-        unassigned = assigment['unassigned_queens']
+       return mrv_order(self, assigment)
+    
+class CSP_QueenProblemMRV_Inferences(CSP_QueenProblemInferences):
+    def __init__(self, n_queens, reporter=None):
+        super().__init__(n_queens, reporter)
 
-        def count_legal_moves(variable):
-            # Counter to keep track of the total number of moves.
-            total = 0
-
-            # Iterate through all available columns to measure
-            # how many legal moves the given variable has.
-            for column in range(self.n_queens):
-                q1 = Pair(variable.i, column)
-                is_legal = True
-
-                # After assigning a column, check to see if there is
-                # at least one attacking queen. If there is an
-                # attacking queen, it cannot be considered a legal move.
-                for q2 in assigned:
-                    # Further comparisons to select the most appropriate order.
-                    if self.reporter is not None:
-                        self.reporter.counter('comparisons', 1)
-
-                    if attacking_each_other(q1, q2):
-                        is_legal = False
-                        break
-                
-                # Increase the counter only if the selected column
-                # is consistent with all other queens already assigned.
-                if is_legal:
-                    total = total + 1
-
-            return total
-
-        # Keep track of the remaining minimum values.
-        min_moves = float('inf')
-        current_min = None
-
-        for variable in unassigned:
-            current_moves = count_legal_moves(variable)
-
-            if current_moves < min_moves:
-                min_moves = current_moves
-                current_min = variable
-
-        return current_min
+    def select_unassigned_variable(self, assigment):
+        return mrv_order(self, assigment)
 
 class SimulatedAnnealingFramework:
     def __init__(self, problem, reporter=None):
@@ -1028,7 +1046,7 @@ def benchmark():
 
             reporter = Report(key, problem_size=size, params=params)
 
-            if ['backtracking', 'backtracking+mrv', 'backtracking+inferences'].count(key) != 0:
+            if ['backtracking', 'backtracking+mrv', 'backtracking+inferences', 'backtracking+mrv+inferences'].count(key) != 0:
 
                 def mangle(data):
                     queens = data['results']['solution']['assigned_queens']
@@ -1041,6 +1059,8 @@ def benchmark():
                     problem = CSP_QueenProblem(size, reporter)
                 elif key == 'backtracking+inferences':
                     problem = CSP_QueenProblemInferences(size, reporter)
+                elif key == 'backtracking+mrv+inferences':
+                    problem = CSP_QueenProblemMRV_Inferences(size, reporter)
                 else:
                     problem = CSP_QueenProblemMRV(size, reporter)
 
